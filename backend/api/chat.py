@@ -402,24 +402,30 @@ def chat_stream(request, payload: ChatRequest):
     session_id = payload.session_id
     session = None
     
+    # 获取当前用户（如果已认证）
+    current_user = request.auth if hasattr(request, 'auth') and request.auth else None
+    
     if session_id:
         try:
             # 尝试获取现有 Session
             session = ChatSession.objects.get(id=session_id)
+            # 如果会话没有用户但当前用户已登录，关联用户
+            if not session.user and current_user:
+                session.user = current_user
+                session.save(update_fields=['user'])
         except (ChatSession.DoesNotExist, ValidationError):
             # 如果不存在 或 格式不对，我们就尝试新建
             try:
                 # 尝试用传来的 session_id 创建可能会再次失败（如果格式不对）
-                # 所以要分情况
                 uuid.UUID(session_id) # 验证一下格式
-                session = ChatSession.objects.create(id=session_id)
+                session = ChatSession.objects.create(id=session_id, user=current_user)
             except (ValueError, ValidationError):
                 # 彻底放弃原来的 ID，生成新的
-                session = ChatSession.objects.create()
+                session = ChatSession.objects.create(user=current_user)
                 session_id = str(session.id)
     else:
         # 如果前端没传 ID，我们新建一个
-        session = ChatSession.objects.create()
+        session = ChatSession.objects.create(user=current_user)
         session_id = str(session.id)
 
     # 2. 获取用户最新的一条消息
@@ -462,6 +468,14 @@ def get_history(request, session_id: str):
     """获取会话历史"""
     from django.core.exceptions import ValidationError
     try:
+        # 验证会话存在且属于当前用户
+        current_user = request.auth if hasattr(request, 'auth') and request.auth else None
+        session = ChatSession.objects.filter(id=session_id).first()
+        
+        # 如果会话存在且有用户归属，验证是否为当前用户
+        if session and session.user and current_user and session.user != current_user:
+            return []  # 无权访问其他用户的会话
+        
         messages = ChatMessage.objects.filter(session_id=session_id).order_by('created_at')
         return [
             {
@@ -480,9 +494,16 @@ def get_history(request, session_id: str):
 
 @router.delete("/session/{session_id}", summary="删除会话")
 def delete_session(request, session_id: str):
-    """删除指定会话及其所有消息"""
+    """删除指定会话及其所有消息（仅限当前用户）"""
     from django.core.exceptions import ValidationError
     try:
+        current_user = request.auth if hasattr(request, 'auth') and request.auth else None
+        
+        # 验证会话属于当前用户
+        session = ChatSession.objects.filter(id=session_id).first()
+        if session and session.user and current_user and session.user != current_user:
+            return {"success": False, "error": "Permission denied"}
+        
         # 删除所有消息
         deleted_count, _ = ChatMessage.objects.filter(session_id=session_id).delete()
         # 删除会话
@@ -496,12 +517,23 @@ def delete_session(request, session_id: str):
 
 @router.get("/sessions", response=List[SessionSchema], summary="获取会话列表")
 def get_sessions(request):
-    """获取所有会话列表"""
-    from django.db.models import Count
+    """获取当前用户的会话列表"""
+    from django.db.models import Count, Q
     
-    sessions = ChatSession.objects.filter(is_active=True).annotate(
-        message_count=Count('messages')
-    ).order_by('-updated_at')[:20]  # 最近20个会话
+    # 获取当前用户
+    current_user = request.auth if hasattr(request, 'auth') and request.auth else None
+    
+    # 只返回当前用户的会话（如果已登录）或匿名会话
+    if current_user:
+        sessions = ChatSession.objects.filter(
+            is_active=True,
+            user=current_user
+        ).annotate(
+            message_count=Count('messages')
+        ).order_by('-updated_at')[:20]
+    else:
+        # 未登录用户看不到任何会话
+        return []
     
     return [
         {
