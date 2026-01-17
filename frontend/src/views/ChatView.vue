@@ -258,6 +258,132 @@ const formatTime = (timeStr: string) => {
     }
     return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 };
+
+// 直接发送消息（用于重新生成和编辑）
+const sendMessageDirect = async (text: string, replaceLastAi = false) => {
+    if (!text.trim() || isLoading.value) return;
+
+    isLoading.value = true;
+    abortController.value = new AbortController();
+
+    await nextTick();
+    scrollToBottom();
+
+    // 如果是替换最后一条 AI 消息（重新生成）
+    let aiMsgIndex: number = messages.value.length;
+    if (replaceLastAi) {
+        // 找到最后一条 AI 消息并重置它
+        let found = false;
+        for (let i = messages.value.length - 1; i >= 0; i--) {
+            if (messages.value[i].role === 'ai') {
+                aiMsgIndex = i;
+                messages.value[i] = { role: 'ai', text: '', elapsed: 0 };
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            // 没找到 AI 消息，添加新的
+            messages.value.push({ role: 'ai', text: '', elapsed: 0 });
+        }
+    } else {
+        // 添加新的 AI 消息
+        aiMsgIndex = messages.value.length;
+        messages.value.push({ role: 'ai', text: '', elapsed: 0 });
+    }
+
+    const startTime = Date.now();
+
+    try {
+        const response = await fetch('/api/chat/stream', {
+            method: 'POST',
+            headers: authStore.getAuthHeaders(),
+            body: JSON.stringify({
+                messages: [{ role: 'user', text: text }],
+                session_id: sessionId.value
+            }),
+            signal: abortController.value.signal
+        });
+
+        if (!response.ok) throw new Error('Network error');
+        if (!response.body) throw new Error('No stream');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const data = JSON.parse(line);
+                    if (data.text) {
+                        messages.value[aiMsgIndex].text += data.text;
+                    } else if (data.sources) {
+                        messages.value[aiMsgIndex].sources = data.sources;
+                    } else if (data.type === 'content') {
+                        messages.value[aiMsgIndex].text += data.content;
+                    }
+                } catch (e) { }
+            }
+            scrollToBottom();
+        }
+
+    } catch (e: any) {
+        if (e.name === 'AbortError') messages.value[aiMsgIndex].text += '\n[已停止]';
+        else messages.value[aiMsgIndex].text += '\n[网络错误]';
+    } finally {
+        isLoading.value = false;
+        abortController.value = null;
+        messages.value[aiMsgIndex].elapsed = Date.now() - startTime;
+        messages.value[aiMsgIndex].timestamp = new Date().toISOString();
+        await loadSessions();
+    }
+};
+
+// 重新生成 AI 回复
+const regenerateMessage = (msgIndex: number) => {
+    // 找到这条 AI 消息之前的用户消息
+    let userText = '';
+    for (let i = msgIndex - 1; i >= 0; i--) {
+        if (messages.value[i].role === 'user') {
+            userText = messages.value[i].text;
+            break;
+        }
+    }
+    if (userText) {
+        sendMessageDirect(userText, true);
+    }
+};
+
+// 编辑用户消息
+const editMessage = (msgIndex: number, newText: string) => {
+    // 更新用户消息
+    messages.value[msgIndex].text = newText;
+    messages.value[msgIndex].timestamp = new Date().toISOString();
+
+    // 删除这条消息之后的所有消息（包括 AI 回复）
+    messages.value = messages.value.slice(0, msgIndex + 1);
+
+    // 发送新消息获取 AI 回复
+    sendMessageDirect(newText);
+};
+
+// 获取消息在 messages 数组中的真实索引
+const getRealIndex = (displayIndex: number) => {
+    if (showAllMessages.value || messages.value.length <= RECENT_MESSAGE_COUNT) {
+        return displayIndex;
+    }
+    const offset = messages.value.length - RECENT_MESSAGE_COUNT;
+    return displayIndex + offset;
+};
 </script>
 
 <template>
@@ -354,7 +480,11 @@ const formatTime = (timeStr: string) => {
                     <!-- Messages -->
                     <ChatMessage v-for="(msg, index) in displayedMessages" :key="index" :role="msg.role"
                         :text="msg.text" :sources="msg.sources" :timestamp="msg.timestamp" :elapsed="msg.elapsed"
-                        :loading="isLoading && index === displayedMessages.length - 1 && msg.role === 'ai' && !msg.text" />
+                        :loading="isLoading && index === displayedMessages.length - 1 && msg.role === 'ai' && !msg.text"
+                        :is-last="index === displayedMessages.length - 1"
+                        :can-regenerate="msg.role === 'ai' && index === displayedMessages.length - 1 && !isLoading"
+                        @regenerate="regenerateMessage(getRealIndex(index))"
+                        @edit="(newText) => editMessage(getRealIndex(index), newText)" />
                 </div>
             </div>
 

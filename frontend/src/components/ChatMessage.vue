@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, nextTick } from 'vue';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
-import { Bot, User, FileText, Wrench, Clock, Copy, Check } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { Bot, User, FileText, Wrench, Clock, Copy, Check, RefreshCw, Pencil, X, Send } from 'lucide-vue-next';
 
 interface Source {
     type?: string;
@@ -21,9 +20,19 @@ const props = defineProps<{
     sources?: Source[];
     timestamp?: string;
     elapsed?: number;
+    isLast?: boolean;
+    canRegenerate?: boolean;
+}>();
+
+const emit = defineEmits<{
+    (e: 'regenerate'): void;
+    (e: 'edit', newText: string): void;
 }>();
 
 const copied = ref(false);
+const isEditing = ref(false);
+const editText = ref('');
+const editTextarea = ref<HTMLTextAreaElement | null>(null);
 
 const formattedTime = computed(() => {
     if (!props.timestamp) return '';
@@ -31,11 +40,11 @@ const formattedTime = computed(() => {
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 });
 
-const md = new MarkdownIt({
+const md: MarkdownIt = new MarkdownIt({
     html: false,
     linkify: true,
     breaks: true,
-    highlight: function (str, lang) {
+    highlight: function (str: string, lang: string): string {
         if (lang && hljs.getLanguage(lang)) {
             try {
                 return `<pre class="code-block"><div class="code-header"><span class="code-lang">${lang}</span></div><code class="hljs">${hljs.highlight(str, { language: lang }).value}</code></pre>`;
@@ -58,6 +67,39 @@ const copyMessage = async () => {
         console.error('Copy failed:', e);
     }
 };
+
+const startEdit = async () => {
+    editText.value = props.text;
+    isEditing.value = true;
+    await nextTick();
+    if (editTextarea.value) {
+        editTextarea.value.focus();
+        editTextarea.value.style.height = 'auto';
+        editTextarea.value.style.height = editTextarea.value.scrollHeight + 'px';
+    }
+};
+
+const cancelEdit = () => {
+    isEditing.value = false;
+    editText.value = '';
+};
+
+const submitEdit = () => {
+    if (editText.value.trim() && editText.value !== props.text) {
+        emit('edit', editText.value.trim());
+    }
+    isEditing.value = false;
+};
+
+const handleRegenerate = () => {
+    emit('regenerate');
+};
+
+const autoResize = (e: Event) => {
+    const target = e.target as HTMLTextAreaElement;
+    target.style.height = 'auto';
+    target.style.height = target.scrollHeight + 'px';
+};
 </script>
 
 <template>
@@ -73,38 +115,74 @@ const copyMessage = async () => {
             <div class="content">
                 <div class="role-name">{{ role === 'ai' ? 'AI' : '你' }}</div>
 
-                <div class="text-content">
-                    <div v-if="role === 'ai'" class="markdown-body" v-html="renderedText"></div>
-                    <div v-else class="plain-text">{{ text }}</div>
-                    <span v-if="loading" class="typing-cursor"></span>
-                </div>
-
-                <!-- Sources -->
-                <div v-if="role === 'ai' && sources && sources.length > 0" class="sources">
-                    <div v-for="(source, idx) in sources" :key="idx" class="source-tag"
-                        :class="{ 'source-tag--tool': source.type === 'tool' }">
-                        <Wrench v-if="source.type === 'tool'" :size="12" />
-                        <FileText v-else :size="12" />
-                        <span v-if="source.type === 'tool'">{{ source.name }}</span>
-                        <span v-else>{{ source.file_name }}<span v-if="source.page" class="page">p{{ source.page
-                                }}</span></span>
+                <!-- Editing Mode -->
+                <div v-if="isEditing && role === 'user'" class="edit-container">
+                    <textarea ref="editTextarea" v-model="editText" class="edit-textarea" @input="autoResize"
+                        @keydown.enter.exact.prevent="submitEdit" @keydown.escape="cancelEdit"></textarea>
+                    <div class="edit-actions">
+                        <button class="edit-btn edit-btn--cancel" @click="cancelEdit" title="取消">
+                            <X :size="16" />
+                            <span>取消</span>
+                        </button>
+                        <button class="edit-btn edit-btn--submit" @click="submitEdit" title="发送">
+                            <Send :size="16" />
+                            <span>发送</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Footer -->
-                <div v-if="role === 'ai' && (elapsed || formattedTime)" class="message-footer">
-                    <div class="meta">
-                        <span v-if="elapsed" class="meta-item">
-                            <Clock :size="12" />
-                            {{ (elapsed / 1000).toFixed(1) }}s
-                        </span>
-                        <span v-if="formattedTime" class="meta-item">{{ formattedTime }}</span>
+                <!-- Normal Display -->
+                <template v-else>
+                    <div class="text-content">
+                        <div v-if="role === 'ai'" class="markdown-body" v-html="renderedText"></div>
+                        <div v-else class="plain-text">{{ text }}</div>
+                        <span v-if="loading" class="typing-cursor"></span>
                     </div>
-                    <button class="copy-btn" @click="copyMessage" :title="copied ? '已复制' : '复制'">
-                        <Check v-if="copied" :size="14" />
-                        <Copy v-else :size="14" />
-                    </button>
-                </div>
+
+                    <!-- Sources -->
+                    <div v-if="role === 'ai' && sources && sources.length > 0" class="sources">
+                        <div v-for="(source, idx) in sources" :key="idx" class="source-tag"
+                            :class="{ 'source-tag--tool': source.type === 'tool' }">
+                            <Wrench v-if="source.type === 'tool'" :size="12" />
+                            <FileText v-else :size="12" />
+                            <span v-if="source.type === 'tool'">{{ source.name }}</span>
+                            <span v-else>{{ source.file_name }}<span v-if="source.page" class="page">p{{ source.page
+                                    }}</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Footer for AI messages -->
+                    <div v-if="role === 'ai' && !loading" class="message-footer">
+                        <div class="meta">
+                            <span v-if="elapsed" class="meta-item">
+                                <Clock :size="12" />
+                                {{ (elapsed / 1000).toFixed(1) }}s
+                            </span>
+                            <span v-if="formattedTime" class="meta-item">{{ formattedTime }}</span>
+                        </div>
+                        <div class="actions">
+                            <button v-if="canRegenerate" class="action-btn" @click="handleRegenerate" title="重新生成">
+                                <RefreshCw :size="14" />
+                            </button>
+                            <button class="action-btn" @click="copyMessage" :title="copied ? '已复制' : '复制'">
+                                <Check v-if="copied" :size="14" />
+                                <Copy v-else :size="14" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Footer for User messages -->
+                    <div v-if="role === 'user'" class="message-footer message-footer--user">
+                        <div class="meta">
+                            <span v-if="formattedTime" class="meta-item">{{ formattedTime }}</span>
+                        </div>
+                        <div class="actions">
+                            <button class="action-btn" @click="startEdit" title="编辑">
+                                <Pencil :size="14" />
+                            </button>
+                        </div>
+                    </div>
+                </template>
             </div>
         </div>
     </div>
@@ -198,6 +276,73 @@ const copyMessage = async () => {
     }
 }
 
+// Edit Mode
+.edit-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.edit-textarea {
+    width: 100%;
+    min-height: 60px;
+    max-height: 300px;
+    padding: 12px 14px;
+    background: var(--bg-input, var(--bg-primary));
+    border: 2px solid var(--primary);
+    border-radius: 10px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    resize: none;
+    font-family: inherit;
+    box-sizing: border-box;
+
+    &:focus {
+        outline: none;
+    }
+}
+
+.edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.edit-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &--cancel {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+    }
+
+    &--submit {
+        background: var(--primary);
+        border: none;
+        color: white;
+
+        &:hover {
+            background: var(--primary-hover);
+        }
+    }
+}
+
+// Sources
 .sources {
     display: flex;
     flex-wrap: wrap;
@@ -217,8 +362,8 @@ const copyMessage = async () => {
     color: var(--text-secondary);
 
     &--tool {
-        background: rgba(var(--primary), 0.1);
-        border-color: rgba(var(--primary), 0.3);
+        background: rgba(16, 163, 127, 0.1);
+        border-color: rgba(16, 163, 127, 0.3);
         color: var(--primary);
     }
 
@@ -228,6 +373,7 @@ const copyMessage = async () => {
     }
 }
 
+// Footer
 .message-footer {
     display: flex;
     align-items: center;
@@ -235,6 +381,15 @@ const copyMessage = async () => {
     margin-top: 16px;
     padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
+
+    &--user {
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+}
+
+.message:hover .message-footer--user {
+    opacity: 1;
 }
 
 .meta {
@@ -251,7 +406,13 @@ const copyMessage = async () => {
     color: var(--text-secondary);
 }
 
-.copy-btn {
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.action-btn {
     background: none;
     border: none;
     color: var(--text-secondary);
@@ -407,6 +568,27 @@ const copyMessage = async () => {
         border: none;
         border-top: 1px solid var(--border-color);
         margin: 24px 0;
+    }
+}
+
+// Mobile
+@media (max-width: 768px) {
+    .message {
+        padding: 16px 0;
+    }
+
+    .message-inner {
+        gap: 12px;
+        padding: 0 12px;
+    }
+
+    .avatar {
+        width: 28px;
+        height: 28px;
+    }
+
+    .message-footer--user {
+        opacity: 1;
     }
 }
 </style>
