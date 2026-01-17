@@ -152,19 +152,10 @@ const handleSubmit = async () => {
 </template>
 
 <style scoped lang="scss">
-$primary: #10a37f;
-$primary-hover: #0d8c6d;
-$bg-dark: #202123;
-$bg-darker: #171717;
-$bg-light: #343541;
-$text-primary: #ececf1;
-$text-secondary: #8e8ea0;
-$border-color: #4e4f60;
-
 .auth-page {
     min-height: 100vh;
     display: flex;
-    background: $bg-darker;
+    background: #171717;
 }
 
 .auth-container {
@@ -182,7 +173,7 @@ $border-color: #4e4f60;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, $bg-dark 0%, $bg-light 100%);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
     padding: 40px;
     position: relative;
     overflow: hidden;
@@ -192,7 +183,7 @@ $border-color: #4e4f60;
         position: absolute;
         width: 400px;
         height: 400px;
-        background: radial-gradient(circle, rgba($primary, 0.15) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(16, 163, 127, 0.15) 0%, transparent 70%);
         top: -100px;
         right: -100px;
         border-radius: 50%;
@@ -203,7 +194,7 @@ $border-color: #4e4f60;
         position: absolute;
         width: 300px;
         height: 300px;
-        background: radial-gradient(circle, rgba(#5436da, 0.1) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(84, 54, 218, 0.1) 0%, transparent 70%);
         bottom: -50px;
         left: -50px;
         border-radius: 50%;
@@ -223,26 +214,26 @@ $border-color: #4e4f60;
 .logo {
     width: 72px;
     height: 72px;
-    background: $primary;
+    background: var(--primary);
     border-radius: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     margin-bottom: 24px;
-    box-shadow: 0 20px 40px rgba($primary, 0.3);
+    box-shadow: 0 20px 40px rgba(16, 163, 127, 0.3);
 }
 
 .branding-content h1 {
     font-size: 36px;
     font-weight: 700;
-    color: $text-primary;
+    color: var(--text-primary);
     margin: 0 0 12px;
 }
 
 .branding-content>p {
     font-size: 16px;
-    color: $text-secondary;
+    color: var(--text-secondary);
     line-height: 1.6;
     margin: 0 0 40px;
 }
@@ -263,7 +254,7 @@ $border-color: #4e4f60;
     width: 44px;
     height: 44px;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid $border-color;
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -280,12 +271,12 @@ $border-color: #4e4f60;
     strong {
         font-size: 15px;
         font-weight: 600;
-        color: $text-primary;
+        color: var(--text-primary);
     }
 
     span {
         font-size: 13px;
-        color: $text-secondary;
+        color: var(--text-secondary);
     }
 }
 
@@ -297,7 +288,7 @@ $border-color: #4e4f60;
     align-items: center;
     justify-content: center;
     padding: 40px;
-    background: $bg-dark;
+    background: var(--bg-secondary);
 
     @media (max-width: 900px) {
         min-height: 100vh;
@@ -316,13 +307,13 @@ $border-color: #4e4f60;
     h2 {
         font-size: 28px;
         font-weight: 700;
-        color: $text-primary;
+        color: var(--text-primary);
         margin: 0 0 8px;
     }
 
     p {
         font-size: 14px;
-        color: $text-secondary;
+        color: var(--text-secondary);
         margin: 0;
     }
 }
@@ -344,11 +335,11 @@ form {
         gap: 8px;
         font-size: 14px;
         font-weight: 500;
-        color: $text-primary;
+        color: var(--text-primary);
 
         .optional {
             font-weight: 400;
-            color: $text-secondary;
+            color: var(--text-secondary);
             font-size: 12px;
         }
     }
@@ -356,22 +347,22 @@ form {
     input {
         width: 100%;
         padding: 14px 16px;
-        background: $bg-light;
-        border: 1px solid $border-color;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
         border-radius: 10px;
         font-size: 15px;
-        color: $text-primary;
+        color: var(--text-primary);
         transition: all 0.2s;
         box-sizing: border-box;
 
         &::placeholder {
-            color: $text-secondary;
+            color: var(--text-secondary);
         }
 
         &:focus {
             outline: none;
-            border-color: $primary;
-            box-shadow: 0 0 0 3px rgba($primary, 0.15);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.15);
         }
 
         &:disabled {
@@ -382,9 +373,9 @@ form {
 }
 
 .error-message {
-    background: rgba(#ef4444, 0.1);
-    border: 1px solid rgba(#ef4444, 0.3);
-    color: #f87171;
+    background: var(--error-bg);
+    border: 1px solid var(--error-border);
+    color: var(--error-text);
     padding: 12px 16px;
     border-radius: 10px;
     font-size: 14px;
@@ -393,7 +384,7 @@ form {
 .submit-btn {
     width: 100%;
     padding: 14px;
-    background: $primary;
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 10px;
@@ -408,7 +399,7 @@ form {
     margin-top: 8px;
 
     &:hover:not(:disabled) {
-        background: $primary-hover;
+        background: var(--primary-hover);
     }
 
     &:disabled {
@@ -431,17 +422,17 @@ form {
     text-align: center;
     margin-top: 28px;
     padding-top: 28px;
-    border-top: 1px solid $border-color;
+    border-top: 1px solid var(--border-color);
 
     span {
-        color: $text-secondary;
+        color: var(--text-secondary);
         font-size: 14px;
     }
 
     button {
         background: none;
         border: none;
-        color: $primary;
+        color: var(--primary);
         font-weight: 600;
         font-size: 14px;
         cursor: pointer;
@@ -456,7 +447,7 @@ form {
 
 .footer {
     text-align: center;
-    color: $text-secondary;
+    color: var(--text-secondary);
     font-size: 12px;
     margin-top: 40px;
 }

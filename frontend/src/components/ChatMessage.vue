@@ -87,7 +87,7 @@ const copyMessage = async () => {
                         <FileText v-else :size="12" />
                         <span v-if="source.type === 'tool'">{{ source.name }}</span>
                         <span v-else>{{ source.file_name }}<span v-if="source.page" class="page">p{{ source.page
-                        }}</span></span>
+                                }}</span></span>
                     </div>
                 </div>
 
@@ -111,22 +111,15 @@ const copyMessage = async () => {
 </template>
 
 <style scoped lang="scss">
-$primary: #10a37f;
-$bg-user: #343541;
-$bg-ai: #444654;
-$text-primary: #ececf1;
-$text-secondary: #8e8ea0;
-$border-color: #4e4f60;
-
 .message {
     padding: 24px 0;
 
     &--user {
-        background: $bg-user;
+        background: var(--bg-primary);
     }
 
     &--ai {
-        background: $bg-ai;
+        background: var(--bg-tertiary);
     }
 }
 
@@ -148,7 +141,7 @@ $border-color: #4e4f60;
     flex-shrink: 0;
 
     &--ai {
-        background: $primary;
+        background: var(--primary);
         color: white;
     }
 
@@ -167,13 +160,13 @@ $border-color: #4e4f60;
     font-size: 14px;
     font-weight: 600;
     margin-bottom: 8px;
-    color: $text-primary;
+    color: var(--text-primary);
 }
 
 .text-content {
     font-size: 15px;
     line-height: 1.75;
-    color: $text-primary;
+    color: var(--text-primary);
 }
 
 .plain-text {
@@ -185,7 +178,7 @@ $border-color: #4e4f60;
     display: inline-block;
     width: 8px;
     height: 20px;
-    background: $primary;
+    background: var(--primary);
     margin-left: 4px;
     border-radius: 2px;
     animation: blink 1s ease-in-out infinite;
@@ -218,15 +211,15 @@ $border-color: #4e4f60;
     gap: 6px;
     padding: 4px 10px;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid $border-color;
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     font-size: 12px;
-    color: $text-secondary;
+    color: var(--text-secondary);
 
     &--tool {
-        background: rgba($primary, 0.1);
-        border-color: rgba($primary, 0.3);
-        color: $primary;
+        background: rgba(var(--primary), 0.1);
+        border-color: rgba(var(--primary), 0.3);
+        color: var(--primary);
     }
 
     .page {
@@ -255,13 +248,13 @@ $border-color: #4e4f60;
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: $text-secondary;
+    color: var(--text-secondary);
 }
 
 .copy-btn {
     background: none;
     border: none;
-    color: $text-secondary;
+    color: var(--text-secondary);
     cursor: pointer;
     padding: 6px;
     border-radius: 6px;
@@ -271,14 +264,14 @@ $border-color: #4e4f60;
     transition: all 0.15s;
 
     &:hover {
-        color: $text-primary;
+        color: var(--text-primary);
         background: rgba(255, 255, 255, 0.1);
     }
 }
 
 // Markdown Styles
 .markdown-body {
-    color: $text-primary;
+    color: var(--text-primary);
 
     :deep(p) {
         margin: 0 0 16px;
@@ -294,7 +287,7 @@ $border-color: #4e4f60;
     :deep(h4) {
         margin: 24px 0 12px;
         font-weight: 600;
-        color: $text-primary;
+        color: var(--text-primary);
         line-height: 1.4;
 
         &:first-child {
@@ -330,7 +323,7 @@ $border-color: #4e4f60;
 
         .code-lang {
             font-size: 12px;
-            color: $text-secondary;
+            color: var(--text-secondary);
             text-transform: lowercase;
         }
 
@@ -371,7 +364,7 @@ $border-color: #4e4f60;
 
     :deep(strong) {
         font-weight: 600;
-        color: $text-primary;
+        color: var(--text-primary);
     }
 
     :deep(a) {
@@ -384,10 +377,10 @@ $border-color: #4e4f60;
     }
 
     :deep(blockquote) {
-        border-left: 4px solid $border-color;
+        border-left: 4px solid var(--border-color);
         margin: 16px 0;
         padding-left: 16px;
-        color: $text-secondary;
+        color: var(--text-secondary);
         font-style: italic;
     }
 
@@ -401,7 +394,7 @@ $border-color: #4e4f60;
     :deep(th),
     :deep(td) {
         padding: 10px 14px;
-        border: 1px solid $border-color;
+        border: 1px solid var(--border-color);
         text-align: left;
     }
 
@@ -412,7 +405,7 @@ $border-color: #4e4f60;
 
     :deep(hr) {
         border: none;
-        border-top: 1px solid $border-color;
+        border-top: 1px solid var(--border-color);
         margin: 24px 0;
     }
 }

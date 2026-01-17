@@ -2,15 +2,17 @@
 import { ref, nextTick, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useThemeStore } from '@/stores/theme';
 import ChatMessage from '@/components/ChatMessage.vue';
 import {
     Plus, MessageSquare, Trash2, LogOut,
     Menu, ChevronDown, ChevronUp, Send, Square,
-    X, Sparkles
+    X, Sparkles, Sun, Moon
 } from 'lucide-vue-next';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 
 interface Message {
     role: 'user' | 'ai';
@@ -302,9 +304,16 @@ const formatTime = (timeStr: string) => {
                     </div>
                     <span class="user-name">{{ authStore.user?.username || 'User' }}</span>
                 </div>
-                <button class="logout-btn" @click="handleLogout" title="退出登录">
-                    <LogOut :size="18" />
-                </button>
+                <div class="footer-actions">
+                    <button class="theme-btn" @click="themeStore.toggleTheme"
+                        :title="themeStore.theme === 'dark' ? '切换浅色' : '切换深色'">
+                        <Sun v-if="themeStore.theme === 'dark'" :size="18" />
+                        <Moon v-else :size="18" />
+                    </button>
+                    <button class="logout-btn" @click="handleLogout" title="退出登录">
+                        <LogOut :size="18" />
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -361,25 +370,16 @@ const formatTime = (timeStr: string) => {
 </template>
 
 <style scoped lang="scss">
-// Variables
-$primary: #10a37f;
-$primary-hover: #0d8c6d;
-$bg-dark: #202123;
-$bg-darker: #171717;
-$bg-light: #343541;
-$text-primary: #ececf1;
-$text-secondary: #8e8ea0;
-$border-color: #4e4f60;
-
 // Reset & Base
 .app-container {
     display: flex;
     height: 100vh;
     width: 100vw;
-    background: $bg-light;
-    color: $text-primary;
+    background: var(--bg-primary);
+    color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 // Overlay
@@ -395,11 +395,11 @@ $border-color: #4e4f60;
 .sidebar {
     width: 260px;
     height: 100%;
-    background: $bg-dark;
+    background: var(--bg-secondary);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    border-right: 1px solid $border-color;
+    border-right: 1px solid var(--border-color);
 
     @media (max-width: 768px) {
         position: fixed;
@@ -421,7 +421,7 @@ $border-color: #4e4f60;
     align-items: center;
     justify-content: space-between;
     padding: 16px;
-    border-bottom: 1px solid $border-color;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .logo {
@@ -433,21 +433,21 @@ $border-color: #4e4f60;
 }
 
 .logo-icon {
-    color: $primary;
+    color: var(--primary);
 }
 
 .close-btn {
     display: none;
     background: none;
     border: none;
-    color: $text-secondary;
+    color: var(--text-secondary);
     cursor: pointer;
     padding: 4px;
     border-radius: 6px;
     transition: all 0.15s;
 
     &:hover {
-        color: $text-primary;
+        color: var(--text-primary);
         background: rgba(255, 255, 255, 0.1);
     }
 
@@ -466,7 +466,7 @@ $border-color: #4e4f60;
     }
 
     &::-webkit-scrollbar-thumb {
-        background: $border-color;
+        background: var(--border-color);
         border-radius: 4px;
     }
 }
@@ -479,9 +479,9 @@ $border-color: #4e4f60;
     gap: 8px;
     padding: 12px 16px;
     background: transparent;
-    border: 1px dashed $border-color;
+    border: 1px dashed var(--border-color);
     border-radius: 8px;
-    color: $text-primary;
+    color: var(--text-primary);
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
@@ -489,7 +489,7 @@ $border-color: #4e4f60;
 
     &:hover {
         background: rgba(255, 255, 255, 0.05);
-        border-color: $text-secondary;
+        border-color: var(--text-secondary);
     }
 }
 
@@ -502,7 +502,7 @@ $border-color: #4e4f60;
 .sessions-label {
     font-size: 11px;
     font-weight: 600;
-    color: $text-secondary;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 8px 8px 12px;
@@ -510,7 +510,7 @@ $border-color: #4e4f60;
 
 .sessions-empty {
     text-align: center;
-    color: $text-secondary;
+    color: var(--text-secondary);
     font-size: 13px;
     padding: 20px;
 }
@@ -539,7 +539,7 @@ $border-color: #4e4f60;
 
 .session-icon {
     flex-shrink: 0;
-    color: $text-secondary;
+    color: var(--text-secondary);
 }
 
 .session-content {
@@ -556,7 +556,7 @@ $border-color: #4e4f60;
 
 .session-time {
     font-size: 11px;
-    color: $text-secondary;
+    color: var(--text-secondary);
     margin-top: 2px;
 }
 
@@ -564,7 +564,7 @@ $border-color: #4e4f60;
     opacity: 0;
     background: none;
     border: none;
-    color: $text-secondary;
+    color: var(--text-secondary);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -582,7 +582,7 @@ $border-color: #4e4f60;
 
 .sidebar-footer {
     padding: 12px 16px;
-    border-top: 1px solid $border-color;
+    border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -597,7 +597,7 @@ $border-color: #4e4f60;
 .user-avatar {
     width: 32px;
     height: 32px;
-    background: $primary;
+    background: var(--primary);
     color: white;
     border-radius: 8px;
     display: flex;
@@ -612,13 +612,40 @@ $border-color: #4e4f60;
     font-weight: 500;
 }
 
-.logout-btn {
+.footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.theme-btn {
     background: none;
     border: none;
-    color: $text-secondary;
+    color: var(--text-secondary);
     cursor: pointer;
     padding: 6px;
     border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+
+    &:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+.logout-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.15s;
 
     &:hover {
@@ -634,7 +661,7 @@ $border-color: #4e4f60;
     flex-direction: column;
     min-width: 0;
     height: 100%;
-    background: $bg-light;
+    background: var(--bg-primary);
 }
 
 .mobile-header {
@@ -642,8 +669,8 @@ $border-color: #4e4f60;
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: $bg-dark;
-    border-bottom: 1px solid $border-color;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
 
     @media (max-width: 768px) {
         display: flex;
@@ -653,7 +680,7 @@ $border-color: #4e4f60;
 .icon-btn {
     background: none;
     border: none;
-    color: $text-primary;
+    color: var(--text-primary);
     cursor: pointer;
     padding: 8px;
     border-radius: 8px;
@@ -684,7 +711,7 @@ $border-color: #4e4f60;
     }
 
     &::-webkit-scrollbar-thumb {
-        background: $border-color;
+        background: var(--border-color);
         border-radius: 6px;
     }
 
@@ -707,9 +734,9 @@ $border-color: #4e4f60;
     padding: 10px 20px;
     margin: 0 auto 24px;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid $border-color;
+    border: 1px solid var(--border-color);
     border-radius: 20px;
-    color: $text-secondary;
+    color: var(--text-secondary);
     font-size: 13px;
     cursor: pointer;
     transition: all 0.15s;
@@ -717,15 +744,15 @@ $border-color: #4e4f60;
 
     &:hover {
         background: rgba(255, 255, 255, 0.1);
-        color: $text-primary;
+        color: var(--text-primary);
     }
 }
 
 // Input Area
 .input-area {
     padding: 16px;
-    background: $bg-light;
-    border-top: 1px solid $border-color;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
 
     @media (max-width: 768px) {
         position: fixed;
@@ -743,15 +770,15 @@ $border-color: #4e4f60;
     display: flex;
     align-items: flex-end;
     gap: 12px;
-    background: $bg-dark;
-    border: 1px solid $border-color;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 12px 16px;
     transition: all 0.2s;
 
     &:focus-within {
-        border-color: $primary;
-        box-shadow: 0 0 0 2px rgba($primary, 0.2);
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(var(--primary), 0.2);
     }
 }
 
@@ -761,14 +788,14 @@ textarea {
     border: none;
     outline: none;
     resize: none;
-    color: $text-primary;
+    color: var(--text-primary);
     font-size: 15px;
     line-height: 1.5;
     max-height: 150px;
     font-family: inherit;
 
     &::placeholder {
-        color: $text-secondary;
+        color: var(--text-secondary);
     }
 
     @media (max-width: 768px) {
@@ -779,7 +806,7 @@ textarea {
 .send-btn {
     width: 36px;
     height: 36px;
-    background: $primary;
+    background: var(--primary);
     border: none;
     border-radius: 8px;
     color: white;
@@ -791,12 +818,12 @@ textarea {
     transition: all 0.15s;
 
     &:hover:not(:disabled) {
-        background: $primary-hover;
+        background: var(--primary)-hover;
     }
 
     &:disabled {
-        background: $border-color;
-        color: $text-secondary;
+        background: var(--border-color);
+        color: var(--text-secondary);
         cursor: not-allowed;
     }
 
@@ -814,7 +841,7 @@ textarea {
     margin: 8px auto 0;
     text-align: center;
     font-size: 11px;
-    color: $text-secondary;
+    color: var(--text-secondary);
 }
 
 // Animations
