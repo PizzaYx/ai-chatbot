@@ -4,9 +4,10 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import ChatMessage from '@/components/ChatMessage.vue';
 import {
-    Plus, ChatDotRound, Delete, SwitchButton,
-    Menu, ArrowDown, ArrowUp, Promotion, VideoPause
-} from '@element-plus/icons-vue';
+    Plus, MessageSquare, Trash2, LogOut,
+    Menu, ChevronDown, ChevronUp, Send, Square,
+    X, Sparkles
+} from 'lucide-vue-next';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -19,10 +20,9 @@ interface Message {
     elapsed?: number;
 }
 
-// 初始欢迎语
 const defaultMessage: Message = {
     role: 'ai',
-    text: '您好！我是您的智能助手。\n\n有什么我可以帮您的吗？'
+    text: '你好！我是你的 AI 助手。有什么我可以帮助你的吗？'
 };
 
 const isMobileMenuOpen = ref(false);
@@ -33,7 +33,6 @@ const isLoading = ref(false);
 const chatContainer = ref<HTMLElement | null>(null);
 const abortController = ref<AbortController | null>(null);
 
-// 历史消息折叠
 const showAllMessages = ref(false);
 const RECENT_MESSAGE_COUNT = 6;
 
@@ -49,9 +48,8 @@ const hiddenMessageCount = computed(() => {
     return Math.max(0, messages.value.length - RECENT_MESSAGE_COUNT);
 });
 
-// 会话列表
 interface Session {
-    id: string; // UUID
+    id: string;
     title: string;
     updated_at: string;
 }
@@ -88,7 +86,6 @@ const switchSession = async (session: Session) => {
     isMobileMenuOpen.value = false;
 };
 
-// UUID Generator
 function createUUID() {
     if (crypto.randomUUID) return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -110,7 +107,6 @@ const createNewSession = () => {
 const deleteSession = async (id: string) => {
     if (!confirm('确定要删除这个会话吗？')) return;
     try {
-        // 注意：后端路径是 /session/ 不是 /sessions/
         const res = await fetch(`/api/chat/session/${id}`, { method: 'DELETE' });
         if (res.ok) {
             await loadSessions();
@@ -136,7 +132,7 @@ const loadHistory = async () => {
             if (history && history.length > 0) {
                 messages.value = history.map((h: any) => ({
                     role: h.role,
-                    text: h.text || '', // Backend returns 'text' not 'content'
+                    text: h.text || '',
                     sources: h.sources
                 }));
             } else {
@@ -195,7 +191,7 @@ const sendMessage = async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                messages: [{ role: 'user', text: text }], // Keep strict format
+                messages: [{ role: 'user', text: text }],
                 session_id: sessionId.value
             }),
             signal: abortController.value.signal
@@ -220,18 +216,12 @@ const sendMessage = async () => {
                 if (!line.trim()) continue;
                 try {
                     const data = JSON.parse(line);
-                    // 后端发送 {text: "..."} 或 {sources: [...]}
                     if (data.text) {
                         messages.value[aiMsgIndex].text += data.text;
                     } else if (data.sources) {
                         messages.value[aiMsgIndex].sources = data.sources;
                     } else if (data.type === 'content') {
-                        // 兼容旧格式
                         messages.value[aiMsgIndex].text += data.content;
-                    } else if (data.type === 'title') {
-                        loadSessions();
-                    } else if (data.type === 'error') {
-                        messages.value[aiMsgIndex].text += `\n[Error: ${data.message}]`;
                     }
                 } catch (e) { }
             }
@@ -262,154 +252,154 @@ const formatTime = (timeStr: string) => {
 </script>
 
 <template>
-    <div class="chat-layout">
-        <div v-if="isMobileMenuOpen" class="sidebar-overlay" @click="isMobileMenuOpen = false"></div>
+    <div class="app-container">
+        <!-- Overlay -->
+        <Transition name="fade">
+            <div v-if="isMobileMenuOpen" class="overlay" @click="isMobileMenuOpen = false"></div>
+        </Transition>
 
+        <!-- Sidebar -->
         <aside class="sidebar" :class="{ 'sidebar--open': isMobileMenuOpen }">
-            <div class="sidebar__header">
-                <span style="font-size: 18px;">AI 助手</span>
-                <button class="sidebar__close" @click="isMobileMenuOpen = false">×</button>
-            </div>
-
-            <div class="sidebar__actions">
-                <button class="new-chat-btn" @click="createNewSession">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    新对话
+            <div class="sidebar-header">
+                <div class="logo">
+                    <Sparkles class="logo-icon" :size="24" />
+                    <span>AI Chat</span>
+                </div>
+                <button class="close-btn" @click="isMobileMenuOpen = false">
+                    <X :size="20" />
                 </button>
             </div>
 
-            <div class="sidebar__history">
-                <div class="history-title">历史记录</div>
-                <div v-if="sessions.length === 0" class="history-empty">暂无会话</div>
-                <div v-for="session in sessions" :key="session.id" class="history-item"
-                    :class="{ active: session.id === sessionId }" @click="switchSession(session)">
-                    <svg class="session-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    <div class="session-info">
-                        <div class="session-title">{{ session.title }}</div>
-                        <div class="session-time">{{ formatTime(session.updated_at) }}</div>
+            <div class="sidebar-content">
+                <button class="new-chat-btn" @click="createNewSession">
+                    <Plus :size="18" />
+                    <span>新对话</span>
+                </button>
+
+                <div class="sessions-list">
+                    <div class="sessions-label">历史记录</div>
+                    <div v-if="sessions.length === 0" class="sessions-empty">
+                        暂无对话
                     </div>
-                    <button class="delete-session-btn" @click.stop="deleteSession(session.id)">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                            </path>
-                        </svg>
-                    </button>
+                    <div v-for="session in sessions" :key="session.id" class="session-item"
+                        :class="{ 'session-item--active': session.id === sessionId }" @click="switchSession(session)">
+                        <MessageSquare :size="16" class="session-icon" />
+                        <div class="session-content">
+                            <div class="session-title">{{ session.title }}</div>
+                            <div class="session-time">{{ formatTime(session.updated_at) }}</div>
+                        </div>
+                        <button class="session-delete" @click.stop="deleteSession(session.id)">
+                            <Trash2 :size="14" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div class="sidebar__footer">
+            <div class="sidebar-footer">
                 <div class="user-info">
-                    <div class="user-avatar">{{ authStore.user?.username?.charAt(0)?.toUpperCase() || 'U' }}</div>
+                    <div class="user-avatar">
+                        {{ authStore.user?.username?.charAt(0)?.toUpperCase() || 'U' }}
+                    </div>
                     <span class="user-name">{{ authStore.user?.username || 'User' }}</span>
                 </div>
-                <button class="logout-btn" @click="handleLogout">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
+                <button class="logout-btn" @click="handleLogout" title="退出登录">
+                    <LogOut :size="18" />
                 </button>
             </div>
         </aside>
 
-        <main class="main">
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Mobile Header -->
             <header class="mobile-header">
-                <button class="menu-btn" @click="isMobileMenuOpen = true">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
+                <button class="icon-btn" @click="isMobileMenuOpen = true">
+                    <Menu :size="22" />
                 </button>
-                <span class="header-title">AI 助手</span>
-                <button class="new-btn" @click="createNewSession">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
+                <h1 class="page-title">AI Chat</h1>
+                <button class="icon-btn" @click="createNewSession">
+                    <Plus :size="22" />
                 </button>
             </header>
 
-            <div ref="chatContainer" class="chat-container">
-                <div class="chat-messages">
+            <!-- Messages -->
+            <div ref="chatContainer" class="messages-container">
+                <div class="messages-wrapper">
+                    <!-- History Toggle -->
                     <div v-if="hiddenMessageCount > 0" class="history-toggle" @click="showAllMessages = true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                        展开 {{ hiddenMessageCount }} 条历史
+                        <ChevronDown :size="16" />
+                        <span>展开 {{ hiddenMessageCount }} 条历史消息</span>
                     </div>
                     <div v-if="showAllMessages && messages.length > RECENT_MESSAGE_COUNT" class="history-toggle"
                         @click="showAllMessages = false">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="18 15 12 9 6 15"></polyline>
-                        </svg>
-                        收起历史
+                        <ChevronUp :size="16" />
+                        <span>收起历史消息</span>
                     </div>
 
+                    <!-- Messages -->
                     <ChatMessage v-for="(msg, index) in displayedMessages" :key="index" :role="msg.role"
                         :text="msg.text" :sources="msg.sources" :timestamp="msg.timestamp" :elapsed="msg.elapsed"
                         :loading="isLoading && index === displayedMessages.length - 1 && msg.role === 'ai' && !msg.text" />
                 </div>
             </div>
 
+            <!-- Input Area -->
             <div class="input-area">
-                <div class="input-wrapper">
-                    <textarea v-model="userInput" rows="1" placeholder="发送消息..." @keydown.enter.prevent="sendMessage"
-                        :disabled="isLoading"></textarea>
-
-                    <button v-if="isLoading" class="send-btn stop-btn" @click="stopGeneration">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                            fill="currentColor">
-                            <rect x="6" y="6" width="12" height="12" rx="2" />
-                        </svg>
+                <div class="input-container">
+                    <textarea v-model="userInput" :disabled="isLoading" rows="1" placeholder="输入消息..."
+                        @keydown.enter.exact.prevent="sendMessage"></textarea>
+                    <button v-if="isLoading" class="send-btn send-btn--stop" @click="stopGeneration">
+                        <Square :size="18" />
                     </button>
-                    <button v-else class="send-btn" @click="sendMessage" :disabled="!userInput.trim()">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="22" y1="2" x2="11" y2="13"></line>
-                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                        </svg>
+                    <button v-else class="send-btn" :disabled="!userInput.trim()" @click="sendMessage">
+                        <Send :size="18" />
                     </button>
                 </div>
+                <p class="input-hint">AI 可能会犯错，请核实重要信息</p>
             </div>
         </main>
     </div>
 </template>
 
 <style scoped lang="scss">
-.chat-layout {
+// Variables
+$primary: #10a37f;
+$primary-hover: #0d8c6d;
+$bg-dark: #202123;
+$bg-darker: #171717;
+$bg-light: #343541;
+$text-primary: #ececf1;
+$text-secondary: #8e8ea0;
+$border-color: #4e4f60;
+
+// Reset & Base
+.app-container {
     display: flex;
     height: 100vh;
     width: 100vw;
-    background: #ffffff;
-    color: #1f2937;
+    background: $bg-light;
+    color: $text-primary;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow: hidden;
+}
+
+// Overlay
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 40;
 }
 
 // Sidebar
 .sidebar {
-    width: 280px;
+    width: 260px;
     height: 100%;
-    background: #f9fafb;
-    border-right: 1px solid #e5e7eb;
+    background: $bg-dark;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    border-right: 1px solid $border-color;
 
     @media (max-width: 768px) {
         position: fixed;
@@ -419,194 +409,183 @@ const formatTime = (timeStr: string) => {
         z-index: 50;
         transform: translateX(-100%);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: none;
 
         &--open {
             transform: translateX(0);
-            box-shadow: 8px 0 32px rgba(0, 0, 0, 0.15);
         }
     }
 }
 
-.sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
-    z-index: 40;
-}
-
-.sidebar__header {
-    padding: 20px;
+.sidebar-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    font-size: 18px;
-    font-weight: 700;
-    color: #111827;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid $border-color;
 }
 
-.sidebar__close {
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.logo-icon {
+    color: $primary;
+}
+
+.close-btn {
     display: none;
     background: none;
     border: none;
-    font-size: 24px;
+    color: $text-secondary;
     cursor: pointer;
-    color: #6b7280;
-
-    @media (max-width: 768px) {
-        display: block;
-    }
-}
-
-.sidebar__actions {
-    padding: 0 16px 16px;
-}
-
-.new-chat-btn {
-    width: 100%;
-    padding: 12px 16px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.15s;
 
     &:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: $text-primary;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    @media (max-width: 768px) {
+        display: flex;
     }
 }
 
-.sidebar__history {
+.sidebar-content {
     flex: 1;
     overflow-y: auto;
-    padding: 0 12px;
+    padding: 12px;
 
     &::-webkit-scrollbar {
         width: 4px;
     }
 
     &::-webkit-scrollbar-thumb {
-        background: #d1d5db;
+        background: $border-color;
         border-radius: 4px;
     }
 }
 
-.history-title {
-    padding: 12px 8px 8px;
+.new-chat-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: transparent;
+    border: 1px dashed $border-color;
+    border-radius: 8px;
+    color: $text-primary;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 16px;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: $text-secondary;
+    }
+}
+
+.sessions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sessions-label {
     font-size: 11px;
     font-weight: 600;
-    color: #9ca3af;
+    color: $text-secondary;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    padding: 8px 8px 12px;
 }
 
-.history-empty {
-    padding: 20px;
+.sessions-empty {
     text-align: center;
-    color: #9ca3af;
+    color: $text-secondary;
     font-size: 13px;
+    padding: 20px;
 }
 
-.history-item {
-    padding: 12px;
-    margin-bottom: 4px;
-    border-radius: 10px;
-    cursor: pointer;
+.session-item {
     display: flex;
     align-items: center;
     gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
     transition: all 0.15s;
 
     &:hover {
-        background: #e5e7eb;
+        background: rgba(255, 255, 255, 0.05);
+
+        .session-delete {
+            opacity: 1;
+        }
     }
 
-    &.active {
-        background: #dbeafe;
-        color: #1e40af;
-
-        .session-icon {
-            color: #2563eb;
-        }
+    &--active {
+        background: rgba(255, 255, 255, 0.1);
     }
 }
 
 .session-icon {
-    color: #9ca3af;
     flex-shrink: 0;
+    color: $text-secondary;
 }
 
-.session-info {
+.session-content {
     flex: 1;
-    overflow: hidden;
     min-width: 0;
 }
 
 .session-title {
+    font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 14px;
-    font-weight: 500;
-    color: inherit;
 }
 
 .session-time {
     font-size: 11px;
-    color: #9ca3af;
+    color: $text-secondary;
     margin-top: 2px;
 }
 
-.delete-session-btn {
+.session-delete {
+    opacity: 0;
     background: none;
     border: none;
+    color: $text-secondary;
     cursor: pointer;
-    color: #9ca3af;
-    padding: 6px;
-    border-radius: 6px;
+    padding: 4px;
+    border-radius: 4px;
     transition: all 0.15s;
-    opacity: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    .history-item:hover & {
-        opacity: 1;
-    }
 
     &:hover {
         color: #ef4444;
         background: rgba(239, 68, 68, 0.1);
     }
 
-    // Always visible on mobile (no hover state)
     @media (max-width: 768px) {
         opacity: 1;
-        color: #d1d5db;
-
-        &:active {
-            color: #ef4444;
-            background: rgba(239, 68, 68, 0.1);
-        }
     }
 }
 
-.sidebar__footer {
-    padding: 16px;
-    border-top: 1px solid #e5e7eb;
+.sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid $border-color;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
 }
 
 .user-info {
@@ -618,7 +597,7 @@ const formatTime = (timeStr: string) => {
 .user-avatar {
     width: 32px;
     height: 32px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: $primary;
     color: white;
     border-radius: 8px;
     display: flex;
@@ -631,14 +610,13 @@ const formatTime = (timeStr: string) => {
 .user-name {
     font-size: 14px;
     font-weight: 500;
-    color: #374151;
 }
 
 .logout-btn {
     background: none;
     border: none;
+    color: $text-secondary;
     cursor: pointer;
-    color: #9ca3af;
     padding: 6px;
     border-radius: 6px;
     transition: all 0.15s;
@@ -650,42 +628,33 @@ const formatTime = (timeStr: string) => {
 }
 
 // Main Content
-.main {
+.main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    position: relative;
     min-width: 0;
     height: 100%;
-    overflow: hidden;
-    background: #ffffff;
+    background: $bg-light;
 }
 
 .mobile-header {
-    padding: 12px 16px;
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
     display: none;
     align-items: center;
     justify-content: space-between;
-
-    .header-title {
-        font-size: 17px;
-        font-weight: 600;
-        color: #111827;
-    }
+    padding: 12px 16px;
+    background: $bg-dark;
+    border-bottom: 1px solid $border-color;
 
     @media (max-width: 768px) {
         display: flex;
     }
 }
 
-.menu-btn,
-.new-btn {
+.icon-btn {
     background: none;
     border: none;
+    color: $text-primary;
     cursor: pointer;
-    color: #374151;
     padding: 8px;
     border-radius: 8px;
     display: flex;
@@ -694,173 +663,168 @@ const formatTime = (timeStr: string) => {
     transition: all 0.15s;
 
     &:hover {
-        background: #f3f4f6;
-    }
-
-    &:active {
-        background: #e5e7eb;
-    }
-
-    svg {
-        display: block;
+        background: rgba(255, 255, 255, 0.1);
     }
 }
 
-// Chat Container
-.chat-container {
+.page-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+// Messages
+.messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 0 20px;
     scroll-behavior: smooth;
-    background: #ffffff;
 
     &::-webkit-scrollbar {
         width: 6px;
     }
 
     &::-webkit-scrollbar-thumb {
-        background: #e5e7eb;
+        background: $border-color;
         border-radius: 6px;
     }
 
     @media (max-width: 768px) {
-        padding: 0 12px;
-        padding-bottom: 100px; // Space for fixed input
+        padding-bottom: 120px;
     }
 }
 
-.chat-messages {
+.messages-wrapper {
     max-width: 800px;
     margin: 0 auto;
-    padding-bottom: 20px;
-
-    @media (max-width: 768px) {
-        padding-bottom: 10px;
-    }
+    padding: 24px 16px;
 }
 
 .history-toggle {
-    text-align: center;
-    color: #6b7280;
-    font-size: 13px;
-    margin: 16px 0;
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 8px 16px;
-    background: #f3f4f6;
+    padding: 10px 20px;
+    margin: 0 auto 24px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid $border-color;
     border-radius: 20px;
-    width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
+    color: $text-secondary;
+    font-size: 13px;
+    cursor: pointer;
     transition: all 0.15s;
+    width: fit-content;
 
     &:hover {
-        background: #e5e7eb;
-        color: #374151;
+        background: rgba(255, 255, 255, 0.1);
+        color: $text-primary;
     }
 }
 
 // Input Area
 .input-area {
-    padding: 16px 20px;
-    background: #ffffff;
-    border-top: 1px solid #f0f0f0;
-    flex-shrink: 0;
+    padding: 16px;
+    background: $bg-light;
+    border-top: 1px solid $border-color;
 
     @media (max-width: 768px) {
         position: fixed;
         bottom: 0;
         left: 0;
         right: 0;
-        padding: 12px 16px;
-        padding-bottom: calc(12px + env(safe-area-inset-bottom));
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-        z-index: 100;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+        z-index: 30;
     }
 }
 
-.input-wrapper {
+.input-container {
     max-width: 800px;
     margin: 0 auto;
     display: flex;
-    gap: 12px;
     align-items: flex-end;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
+    gap: 12px;
+    background: $bg-dark;
+    border: 1px solid $border-color;
     border-radius: 16px;
     padding: 12px 16px;
     transition: all 0.2s;
 
     &:focus-within {
-        border-color: #667eea;
-        background: #ffffff;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    @media (max-width: 768px) {
-        padding: 10px 14px;
-        border-radius: 24px;
+        border-color: $primary;
+        box-shadow: 0 0 0 2px rgba($primary, 0.2);
     }
 }
 
 textarea {
     flex: 1;
+    background: transparent;
     border: none;
-    resize: none;
     outline: none;
-    padding: 4px 0;
+    resize: none;
+    color: $text-primary;
     font-size: 15px;
     line-height: 1.5;
-    background: transparent;
-    color: #1f2937;
-    max-height: 120px;
+    max-height: 150px;
+    font-family: inherit;
 
     &::placeholder {
-        color: #9ca3af;
+        color: $text-secondary;
     }
 
     @media (max-width: 768px) {
-        font-size: 16px; // Prevent iOS zoom
+        font-size: 16px;
     }
 }
 
 .send-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    width: 36px;
+    height: 36px;
+    background: $primary;
     border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
     flex-shrink: 0;
+    transition: all 0.15s;
 
-    &:hover {
-        transform: scale(1.05);
+    &:hover:not(:disabled) {
+        background: $primary-hover;
     }
 
     &:disabled {
-        background: #d1d5db;
+        background: $border-color;
+        color: $text-secondary;
         cursor: not-allowed;
-        transform: none;
     }
 
-    &.stop-btn {
+    &--stop {
         background: #ef4444;
-    }
 
-    @media (max-width: 768px) {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
+        &:hover {
+            background: #dc2626;
+        }
     }
+}
+
+.input-hint {
+    max-width: 800px;
+    margin: 8px auto 0;
+    text-align: center;
+    font-size: 11px;
+    color: $text-secondary;
+}
+
+// Animations
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
 }
 </style>
