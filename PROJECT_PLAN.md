@@ -100,10 +100,34 @@ graph TD
 - [x] **多模型配置中心**: ✅ 已完成
     - **后台管理**: 在 Django Admin 中配置 LLM (DeepSeek/GPT/Claude) 的 `API_KEY`、`BASE_URL` 和 `Model Name`。
     - **全局/租户策略**: 动态切换系统默认使用的模型，无需重启服务。
-- [ ] **深色模式**: 适配系统级 Dark Mode，提供更沉浸的夜间体验。
+- [x] **深色/浅色主题切换**: ✅ 已完成
+    - 支持用户手动切换主题，自动持久化到 localStorage。
+    - 检测系统偏好，首次访问自动适配。
+- [x] **现代化 UI**: ✅ 已完成
+    - 使用 Lucide Vue Next 图标库，统一设计语言。
+    - 类似 ChatGPT/Claude 风格的深色主题。
+    - 完善移动端响应式适配。
 - [ ] **文档上传前端化**: 允许用户直接在聊天界面拖拽上传文档进行分析，无需进入 Admin。
 
-#### Phase 2: 企业级特性 (优先级: 中)
+#### Phase 2: 交互增强 (优先级: 高) 🆕
+- [ ] **🎤 语音输入 (Speech-to-Text)**:
+    - 集成 Web Speech API 或 Whisper API。
+    - 点击麦克风按钮开始录音，自动转文字发送。
+    - 支持中/英文语音识别。
+- [ ] **🔊 语音播放 (Text-to-Speech)**:
+    - AI 回复支持朗读功能。
+    - 集成 Web Speech Synthesis API 或 TTS API。
+    - 可选择不同语音角色。
+- [ ] **🔄 消息重新生成**:
+    - AI 回复旁添加"重新生成"按钮。
+    - 保留原消息并生成新的回复供对比。
+    - 支持多次重新生成历史记录。
+- [ ] **✏️ 消息编辑**:
+    - 用户消息支持点击编辑。
+    - 编辑后重新发送并更新对话上下文。
+    - 支持取消编辑操作。
+
+#### Phase 3: 企业级特性 (优先级: 中)
 - [x] **Agent 进化 (MCP 架构)**: ✅ 已完成
     - **核心决策**: 弃用传统 FunctionTool，全面拥抱 **Model Context Protocol (MCP)** 标准。
     - **MCP Client**: 集成 LlamaIndex `McpClient`，连接外部 MCP Server。
@@ -117,7 +141,7 @@ graph TD
     - **电子书**: `EPUB`
     - *需在 Django Model 层配置 FileExtensionValidator 进行严格校验。*
 
-#### Phase 3: 运维与部署 (优先级: 低)
+#### Phase 4: 运维与部署 (优先级: 低)
 - [ ] **生产环境配置**: Nginx HTTPS 配置、Gunicorn/Uvicorn 生产级部署脚本。
 - [ ] **监控告警**: 接入 Prometheus/Grafana 监控 RAG 检索命中率与响应时间。
 
@@ -127,6 +151,7 @@ graph TD
 
 > 记录项目关键的决策点与里程碑。
 
+*   **2026-01-17 (v3.2)**: 完成 UI 现代化改造。新增深色/浅色主题切换，使用 Lucide 图标库，修复用户数据隔离 Bug，优化移动端体验。
 *   **2026-01-17 (v3.1)**: 完成 MCP 工具集成与智能 RAG 优化。实现工具来源显示、参数询问、模糊匹配确认、多文档选择。切换 Admin UI 为 SimpleUI (2026.1.13)。
 *   **2026-01-16 (v2.3)**: 完成 Admin 体验重构。实现状态只读、彩色标签及异步索引线程。解决 LlamaIndex UUID 导致的数据删除残留问题。
 *   **2026-01-15 (v2.2)**: 实现聊天打断与多会话列表。优化 RAG 提示词，强制使用 Markdown 格式并隐藏冗余来源说明。
