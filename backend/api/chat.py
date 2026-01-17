@@ -1,5 +1,6 @@
 from ninja import Router, Schema
 from django.http import StreamingHttpResponse
+from django.contrib.auth.models import User
 from typing import List, Optional
 import json
 import uuid
@@ -17,8 +18,30 @@ from llama_index.core.selectors import EmbeddingSingleSelector
 from chat.models import ChatSession, ChatMessage
 from documents.services import get_vector_store, init_llm, init_embedding
 from core.mcp_tools import get_mcp_tools, get_tool_server_map
+from api.auth import decode_token  # 导入 JWT 解码函数
 
 router = Router(tags=["Chat"])
+
+
+def get_current_user_from_request(request) -> Optional[User]:
+    """
+    从请求的 Authorization header 中提取并验证用户
+    这是一个可选的认证 - 如果没有 Token 或 Token 无效，返回 None
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    
+    token = auth_header[7:]  # 去掉 "Bearer " 前缀
+    payload = decode_token(token)
+    if payload is None:
+        return None
+    
+    user_id = payload.get("user_id")
+    try:
+        return User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return None
 
 # --- Schemas ---
 class MessageSchema(Schema):
@@ -403,7 +426,7 @@ def chat_stream(request, payload: ChatRequest):
     session = None
     
     # 获取当前用户（如果已认证）
-    current_user = request.auth if hasattr(request, 'auth') and request.auth else None
+    current_user = get_current_user_from_request(request)
     
     if session_id:
         try:
@@ -469,7 +492,7 @@ def get_history(request, session_id: str):
     from django.core.exceptions import ValidationError
     try:
         # 验证会话存在且属于当前用户
-        current_user = request.auth if hasattr(request, 'auth') and request.auth else None
+        current_user = get_current_user_from_request(request)
         session = ChatSession.objects.filter(id=session_id).first()
         
         # 如果会话存在且有用户归属，验证是否为当前用户
@@ -497,7 +520,7 @@ def delete_session(request, session_id: str):
     """删除指定会话及其所有消息（仅限当前用户）"""
     from django.core.exceptions import ValidationError
     try:
-        current_user = request.auth if hasattr(request, 'auth') and request.auth else None
+        current_user = get_current_user_from_request(request)
         
         # 验证会话属于当前用户
         session = ChatSession.objects.filter(id=session_id).first()
@@ -521,7 +544,7 @@ def get_sessions(request):
     from django.db.models import Count, Q
     
     # 获取当前用户
-    current_user = request.auth if hasattr(request, 'auth') and request.auth else None
+    current_user = get_current_user_from_request(request)
     
     # 只返回当前用户的会话（如果已登录）或匿名会话
     if current_user:

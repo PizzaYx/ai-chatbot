@@ -70,7 +70,9 @@ onMounted(async () => {
 
 const loadSessions = async () => {
     try {
-        const res = await fetch('/api/chat/sessions');
+        const res = await fetch('/api/chat/sessions', {
+            headers: authStore.getAuthHeaders()
+        });
         if (res.ok) {
             sessions.value = await res.json();
         }
@@ -109,7 +111,10 @@ const createNewSession = () => {
 const deleteSession = async (id: string) => {
     if (!confirm('确定要删除这个会话吗？')) return;
     try {
-        const res = await fetch(`/api/chat/session/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/chat/session/${id}`, {
+            method: 'DELETE',
+            headers: authStore.getAuthHeaders()
+        });
         if (res.ok) {
             await loadSessions();
             if (sessionId.value === id) createNewSession();
@@ -128,7 +133,9 @@ const handleLogout = () => {
 
 const loadHistory = async () => {
     try {
-        const res = await fetch(`/api/chat/history?session_id=${sessionId.value}`);
+        const res = await fetch(`/api/chat/history?session_id=${sessionId.value}`, {
+            headers: authStore.getAuthHeaders()
+        });
         if (res.ok) {
             const history = await res.json();
             if (history && history.length > 0) {
@@ -191,7 +198,7 @@ const sendMessage = async () => {
     try {
         const response = await fetch('/api/chat/stream', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authStore.getAuthHeaders(),
             body: JSON.stringify({
                 messages: [{ role: 'user', text: text }],
                 session_id: sessionId.value
