@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # -----------------------------------------------------------
+  # 1. 数据库服务 (PostgreSQL 17 + pgvector)
+  # -----------------------------------------------------------
+  db:
+    image: pgvector/pgvector:pg17  # 使用官方推荐的 Postgres 17 + 向量插件镜像
+    container_name: chatbot-db
+    restart: always
+    environment:
+      POSTGRES_DB: chatbot         # 数据库名称
+      POSTGRES_USER: postgres      # 数据库用户名
+      POSTGRES_PASSWORD: postgres  # 数据库密码 (内网开发默认)
+    volumes:
+      # 数据持久化：将 NAS 上的 ./data/postgres 目录映射到容器内
+      # 这样即使删除容器，您的用户数据和向量索引也不会丢失
+      - ./data/postgres:/var/lib/postgresql/data
+    ports:
+      # 暴露 5432 端口
+      # 1. 允许后端容器连接
+      # 2. 允许您用电脑上的 Navicat/DBeaver 远程连入 NAS 修改数据
+      - "5432:5432"
+    networks:
+      - chatbot-net
+
+  # -----------------------------------------------------------
+  # 2. 后端服务 (Django 6.0 + Ninja)
+  # -----------------------------------------------------------
+  backend:
+    build: 
+      context: ./backend           # 使用 backend/Dockerfile 进行构建
+    container_name: chatbot-backend
+    restart: always
+    # 启动命令：开发模式下使用 runserver 以支持静态文件服务和热重载
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      # 代码挂载：开发神器！
+      # 将您在 NAS (或通过 SSH 修改) 的代码文件夹挂载进去
+      # 这样改了代码只需要重启容器甚至不需要重启就能生效
+      - ./backend:/app
+    environment:
+      # 数据库连接配置
+      DB_HOST: db                  # 这里的 'db' 对应上面的 service name
+      DB_PORT: 5432
+      DB_NAME: chatbot
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      # OpenAI Key: 从宿主机的环境变量读取，或者读取 .env 文件
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_BASE: ${OPENAI_API_BASE}
+      LLM_MODEL: ${LLM_MODEL}
+    depends_on:
+      - db                         # 必须等数据库启动成功后，我再启动
+    ports:
+      # 暴露 8000 端口
+      # 您的前端 (Vue Local) 将访问 http://NAS-IP:8000/api
+      - "8000:8000"
+    networks:
+      - chatbot-net
+
+  # -----------------------------------------------------------
+  # 注意：前端 (Vue) 服务不在此处。
+  # 根据您的要求，前端将在本地 Mac 或边缘节点运行。
+  # -----------------------------------------------------------
+
+networks:
+  chatbot-net:
+    driver: bridge

@@ -1,0 +1,27 @@
+meta {
+  name: AI 聊天
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8000/api/chat/stream
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "成都市餐厨垃圾产生单位有哪些规定？"
+      }
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
