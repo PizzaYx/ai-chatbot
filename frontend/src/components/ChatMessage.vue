@@ -60,7 +60,20 @@ const renderedText = computed(() => {
 
 const copyMessage = async () => {
     try {
-        await navigator.clipboard.writeText(props.text);
+        // 优先使用现代 Clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(props.text);
+        } else {
+            // 回退方案：使用 execCommand
+            const textarea = document.createElement('textarea');
+            textarea.value = props.text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
         copied.value = true;
         setTimeout(() => copied.value = false, 2000);
     } catch (e) {
@@ -147,7 +160,7 @@ const autoResize = (e: Event) => {
                             <FileText v-else :size="12" />
                             <span v-if="source.type === 'tool'">{{ source.name }}</span>
                             <span v-else>{{ source.file_name }}<span v-if="source.page" class="page">p{{ source.page
-                                    }}</span></span>
+                            }}</span></span>
                         </div>
                     </div>
 
