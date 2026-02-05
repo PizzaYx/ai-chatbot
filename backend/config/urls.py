@@ -3,7 +3,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from ninja import NinjaAPI
-from api import chat_router, documents_router, auth_router
+from api import chat_router, documents_router, auth_router, tts_router, stt_router
 
 # 实例化 Django Ninja API
 api = NinjaAPI(
@@ -17,6 +17,8 @@ api = NinjaAPI(
 api.add_router("/chat", chat_router)
 api.add_router("/documents", documents_router)
 api.add_router("/auth", auth_router)
+api.add_router("/tts", tts_router)
+api.add_router("/stt", stt_router)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

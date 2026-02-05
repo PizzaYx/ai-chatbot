@@ -4,6 +4,7 @@ import { resolve } from 'path'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -16,6 +17,7 @@ export default defineConfig({
         }
       }
     }),
+    basicSsl(),  // 启用 HTTPS
     // 自动导入 Vue API (ref, onMounted 等)
     AutoImport({
       imports: ['vue'],

@@ -8,6 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ChatMessage: typeof import('./components/ChatMessage.vue')['default']
+    DigitalHuman: typeof import('./components/DigitalHuman.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }

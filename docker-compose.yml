@@ -5,13 +5,13 @@ services:
   # 1. 数据库服务 (PostgreSQL 17 + pgvector)
   # -----------------------------------------------------------
   db:
-    image: pgvector/pgvector:pg17  # 使用官方推荐的 Postgres 17 + 向量插件镜像
+    image: pgvector/pgvector:pg17 # 使用官方推荐的 Postgres 17 + 向量插件镜像
     container_name: chatbot-db
     restart: always
     environment:
-      POSTGRES_DB: chatbot         # 数据库名称
-      POSTGRES_USER: postgres      # 数据库用户名
-      POSTGRES_PASSWORD: postgres  # 数据库密码 (内网开发默认)
+      POSTGRES_DB: chatbot # 数据库名称
+      POSTGRES_USER: postgres # 数据库用户名
+      POSTGRES_PASSWORD: postgres # 数据库密码 (内网开发默认)
     volumes:
       # 数据持久化：将 NAS 上的 ./data/postgres 目录映射到容器内
       # 这样即使删除容器，您的用户数据和向量索引也不会丢失
@@ -28,8 +28,8 @@ services:
   # 2. 后端服务 (Django 6.0 + Ninja)
   # -----------------------------------------------------------
   backend:
-    build: 
-      context: ./backend           # 使用 backend/Dockerfile 进行构建
+    build:
+      context: ./backend # 使用 backend/Dockerfile 进行构建
     container_name: chatbot-backend
     restart: always
     # 启动命令：开发模式下使用 runserver 以支持静态文件服务和热重载
@@ -41,7 +41,7 @@ services:
       - ./backend:/app
     environment:
       # 数据库连接配置
-      DB_HOST: db                  # 这里的 'db' 对应上面的 service name
+      DB_HOST: db # 这里的 'db' 对应上面的 service name
       DB_PORT: 5432
       DB_NAME: chatbot
       DB_USER: postgres
@@ -50,15 +50,16 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_API_BASE: ${OPENAI_API_BASE}
       LLM_MODEL: ${LLM_MODEL}
+      # 强制离线模式，避免连接 HuggingFace
+      HF_HUB_OFFLINE: 1
     depends_on:
-      - db                         # 必须等数据库启动成功后，我再启动
+      - db # 必须等数据库启动成功后，我再启动
     ports:
       # 暴露 8000 端口
       # 您的前端 (Vue Local) 将访问 http://NAS-IP:8000/api
       - "8000:8000"
     networks:
       - chatbot-net
-
   # -----------------------------------------------------------
   # 注意：前端 (Vue) 服务不在此处。
   # 根据您的要求，前端将在本地 Mac 或边缘节点运行。

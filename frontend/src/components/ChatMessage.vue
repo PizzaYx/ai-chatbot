@@ -3,7 +3,7 @@ import { computed, ref, nextTick } from 'vue';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
-import { Bot, User, FileText, Wrench, Clock, Copy, Check, RefreshCw, Pencil, X, Send } from 'lucide-vue-next';
+import { Bot, User, FileText, Wrench, Clock, Copy, Check, RefreshCw, Pencil, X, Send, Volume2, VolumeX, Loader2 } from 'lucide-vue-next';
 
 interface Source {
     type?: string;
@@ -16,6 +16,7 @@ interface Source {
 const props = defineProps<{
     role: 'user' | 'ai';
     text: string;
+    messageId?: string;  // 用于音频缓存
     loading?: boolean;
     sources?: Source[];
     timestamp?: string;
@@ -27,12 +28,20 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'regenerate'): void;
     (e: 'edit', newText: string): void;
+    (e: 'speaking', isSpeaking: boolean): void;
+    (e: 'audioElement', audio: HTMLAudioElement | null): void;
 }>();
 
 const copied = ref(false);
 const isEditing = ref(false);
 const editText = ref('');
 const editTextarea = ref<HTMLTextAreaElement | null>(null);
+const isPlaying = ref(false);
+const isLoadingAudio = ref(false);
+let currentAudio: HTMLAudioElement | null = null;
+
+// 全局音频缓存：messageId -> audioUrl
+const audioCache = new Map<string, string>();
 
 const formattedTime = computed(() => {
     if (!props.timestamp) return '';
@@ -113,6 +122,66 @@ const autoResize = (e: Event) => {
     target.style.height = 'auto';
     target.style.height = target.scrollHeight + 'px';
 };
+
+const playAudio = async () => {
+    // 如果正在播放，停止
+    if (isPlaying.value && currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+        isPlaying.value = false;
+        emit('speaking', false);
+        emit('audioElement', null);
+        return;
+    }
+
+    const cacheKey = props.messageId || props.text;  // 优先用 messageId，没有则用 text 作为 key
+
+    try {
+        let audioUrl = audioCache.get(cacheKey);
+
+        // 缓存未命中，请求后端
+        if (!audioUrl) {
+            isLoadingAudio.value = true;
+            const response = await fetch('/api/tts/speak', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: props.text })
+            });
+
+            if (!response.ok) throw new Error('TTS 请求失败');
+
+            const blob = await response.blob();
+            audioUrl = URL.createObjectURL(blob);
+            audioCache.set(cacheKey, audioUrl);  // 存入缓存
+        }
+
+        currentAudio = new Audio(audioUrl);
+        // 重要：允许跨域以便 Web Audio API 分析（如果是跨域资源）
+        currentAudio.crossOrigin = "anonymous";
+
+        currentAudio.onended = () => {
+            isPlaying.value = false;
+            emit('speaking', false);
+            emit('audioElement', null);
+        };
+        currentAudio.onerror = () => {
+            isPlaying.value = false;
+            emit('speaking', false);
+            emit('audioElement', null);
+        };
+
+        await currentAudio.play();
+        isPlaying.value = true;
+        emit('speaking', true);
+        emit('audioElement', currentAudio);
+    } catch (e) {
+        console.error('播放音频失败:', e);
+        emit('speaking', false);
+        emit('audioElement', null);
+    } finally {
+        isLoadingAudio.value = false;
+    }
+};
 </script>
 
 <template>
@@ -174,6 +243,12 @@ const autoResize = (e: Event) => {
                             <span v-if="formattedTime" class="meta-item">{{ formattedTime }}</span>
                         </div>
                         <div class="actions">
+                            <button class="action-btn" @click="playAudio" :title="isPlaying ? '停止播放' : '播放语音'"
+                                :disabled="isLoadingAudio">
+                                <Loader2 v-if="isLoadingAudio" :size="14" class="spinning" />
+                                <VolumeX v-else-if="isPlaying" :size="14" />
+                                <Volume2 v-else :size="14" />
+                            </button>
                             <button v-if="canRegenerate" class="action-btn" @click="handleRegenerate" title="重新生成">
                                 <RefreshCw :size="14" />
                             </button>
@@ -437,9 +512,28 @@ const autoResize = (e: Event) => {
     justify-content: center;
     transition: all 0.15s;
 
-    &:hover {
+    &:hover:not(:disabled) {
         color: var(--text-primary);
         background: rgba(255, 255, 255, 0.1);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
     }
 }
 
